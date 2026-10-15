@@ -1,0 +1,38 @@
+{% extends "events/base.html" %}
+
+{% block title %}{{ event.name }}{% endblock %}
+
+{% block content %}
+<header class="event-header">
+  <h1>{{ event.name }}</h1>
+  <p class="meta">
+    {{ event.date|date:"l j F" }} · {{ event.start_time|time:"H:i" }}{% if event.location %} · {{ event.location }}{% endif %}
+  </p>
+  {% if event.notes %}<p class="notes">{{ event.notes|linebreaksbr }}</p>{% endif %}
+</header>
+
+{% for notice in notices %}
+  <p class="notice">{{ notice }}</p>
+{% endfor %}
+
+{% if player %}
+  <form method="post" action="{% url 'leave' event.id %}" class="whoami">
+    {% csrf_token %}
+    Playing as <strong>{{ player.display_name }}</strong>
+    <button type="submit" class="link">Not you?</button>
+  </form>
+{% else %}
+  <form method="post" action="{% url 'join' event.id %}" class="card stack">
+    {% csrf_token %}
+    <label>
+      <span>Your name</span>
+      <input name="display_name" maxlength="40" required autocomplete="nickname" value="{{ join_name|default:'' }}">
+    </label>
+    {% if error %}<span class="error">{{ error }}</span>{% endif %}
+    <button type="submit" class="primary">Join</button>
+    <p class="hint">Join to add the games you're bringing and pick what you want to play. Already joined on another device? Use the same name.</p>
+  </form>
+{% endif %}
+
+{% include "events/_board.html" %}
+{% endblock %}

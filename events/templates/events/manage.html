@@ -1,0 +1,70 @@
+{% extends "events/base.html" %}
+
+{% block title %}Manage {{ event.name }}{% endblock %}
+
+{% block content %}
+<h1>{{ event.name }}</h1>
+<p class="meta">Organiser page. Keep this link private.</p>
+
+<section class="card stack">
+  <h2>Links</h2>
+  <label>
+    <span>Player link: share this with the group</span>
+    <div class="copy-row">
+      <input readonly value="{{ player_url }}" id="player-url">
+      <button type="button" onclick="copyField('player-url', this)">Copy</button>
+    </div>
+  </label>
+  <label>
+    <span>Admin link: bookmark it, don't share it</span>
+    <div class="copy-row">
+      <input readonly value="{{ admin_url }}" id="admin-url">
+      <button type="button" onclick="copyField('admin-url', this)">Copy</button>
+    </div>
+  </label>
+  <a href="{{ player_url }}">Open the player page</a>
+</section>
+
+<section class="card stack">
+  <h2>Status</h2>
+  <p>{{ player_count }} player{{ player_count|pluralize }} joined · {{ games|length }} game{{ games|length|pluralize }} in the inventory.</p>
+  <form method="post">
+    {% csrf_token %}
+    {% if event.locked %}
+      <p class="notice locked">Locked: players can view but not change anything.</p>
+      <button type="submit" name="action" value="unlock">Unlock event</button>
+    {% else %}
+      <p>Open: players can add games and change their interest.</p>
+      <button type="submit" name="action" value="lock" class="primary">Lock event</button>
+    {% endif %}
+  </form>
+</section>
+
+<section class="card stack">
+  <h2>Event details</h2>
+  {% if saved %}<p class="notice">Saved.</p>{% endif %}
+  <form method="post" class="stack">
+    {% csrf_token %}
+    {% for field in form %}
+      <label>
+        <span>{{ field.label }}</span>
+        {{ field }}
+        {% for error in field.errors %}<span class="error">{{ error }}</span>{% endfor %}
+      </label>
+    {% endfor %}
+    <button type="submit" name="action" value="save">Save details</button>
+  </form>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function copyField(id, button) {
+    const field = document.getElementById(id);
+    navigator.clipboard.writeText(field.value).then(() => {
+      button.textContent = "Copied";
+      setTimeout(() => (button.textContent = "Copy"), 1500);
+    }, () => field.select());
+  }
+</script>
+{% endblock %}

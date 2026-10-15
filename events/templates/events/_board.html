@@ -1,0 +1,125 @@
+<div id="board">
+  {% if event.locked %}
+    <p class="notice locked">The organiser has locked this event. You can still view the list.</p>
+  {% endif %}
+  {% if error and player and not error_title %}<p class="error banner">{{ error }}</p>{% endif %}
+
+  {% if player %}
+  <section class="card">
+    <h2>Games you're bringing</h2>
+    {% if my_copies %}
+      <ul class="my-games">
+        {% for copy in my_copies %}
+          <li>
+            <span>{{ copy.title }}{% if copy.box_min_players or copy.box_max_players %} <small>({{ copy.box_min_players|default:"?" }}–{{ copy.box_max_players|default:"?" }} players)</small>{% endif %}</span>
+            {% if not event.locked %}
+            <form method="post" action="{% url 'game_remove' event.id copy.id %}"
+                  hx-post="{% url 'game_remove' event.id copy.id %}" hx-target="#board" hx-swap="outerHTML"
+                  hx-confirm="Remove {{ copy.title }}?">
+              {% csrf_token %}
+              <button type="submit" class="link danger">Remove</button>
+            </form>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="hint">Nothing yet.</p>
+    {% endif %}
+
+    {% if not event.locked %}
+    <form method="post" action="{% url 'game_add' event.id %}" class="add-game"
+          hx-post="{% url 'game_add' event.id %}" hx-target="#board" hx-swap="outerHTML">
+      {% csrf_token %}
+      <label class="grow"><span>Game title</span><input name="title" maxlength="100" required></label>
+      <div class="row">
+        <label><span>Box min</span><input name="box_min" type="number" min="1" max="99" inputmode="numeric"></label>
+        <label><span>Box max</span><input name="box_max" type="number" min="1" max="99" inputmode="numeric"></label>
+      </div>
+      <button type="submit">Add game</button>
+    </form>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  <section>
+    <div class="section-head">
+      <h2>What people want to play</h2>
+      <a href="{% url 'event' event.id %}" class="link">Refresh</a>
+    </div>
+    {% if not games %}
+      <p class="hint">No games added yet.</p>
+    {% endif %}
+    <ol class="ranked">
+      {% for game in games %}
+        <li class="game{% if game.my_interest %} mine{% endif %}">
+          <div class="game-top">
+            <div>
+              <h3>{{ game.title }}{% if game.copies > 1 %} <small>({{ game.copies }} copies)</small>{% endif %}</h3>
+              <p class="meta">
+                Brought by {{ game.bringers|join:", " }}{% if game.box_min or game.box_max %} · box {{ game.box_min|default:"?" }}–{{ game.box_max|default:"?" }}{% endif %}
+              </p>
+            </div>
+            <span class="count" title="Interested players">{{ game.interest_count }}<small> interested</small></span>
+          </div>
+
+          {% if game.runners %}
+            <p class="runners">Can run it:
+              {% for r in game.runners %}<strong>{{ r.name }}</strong> ({{ r.run_min }}–{{ r.run_max }}){% if not forloop.last %}, {% endif %}{% endfor %}
+            </p>
+          {% elif game.needs_runner %}
+            <p class="warn">No one has offered to run this yet</p>
+          {% endif %}
+
+          {% if error and error_title == game.normalised_title %}
+            <p class="error banner">{{ error }}</p>
+          {% endif %}
+
+          {% if player and not event.locked %}
+            <form method="post" action="{% url 'interest' event.id %}"
+                  hx-post="{% url 'interest' event.id %}" hx-target="#board" hx-swap="outerHTML">
+              {% csrf_token %}
+              <input type="hidden" name="title" value="{{ game.normalised_title }}">
+              {% if game.my_interest %}
+                <input type="hidden" name="interested" value="0">
+                <button type="submit" class="picked">✓ You want to play this</button>
+              {% else %}
+                <input type="hidden" name="interested" value="1">
+                <button type="submit">I'd play this</button>
+              {% endif %}
+            </form>
+
+            {% if game.my_interest %}
+              <form method="post" action="{% url 'interest' event.id %}" class="run-form"
+                    hx-post="{% url 'interest' event.id %}" hx-target="#board" hx-swap="outerHTML">
+                {% csrf_token %}
+                <input type="hidden" name="title" value="{{ game.normalised_title }}">
+                <input type="hidden" name="interested" value="1">
+                <label class="check">
+                  <input type="checkbox" name="will_run" value="1" {% if game.my_interest.will_run %}checked{% endif %}
+                         onchange="if (this.checked) { this.form.querySelector('.run-range').hidden = false } else { this.form.requestSubmit() }">
+                  Happy to run this game
+                </label>
+                {# Unticking saves straight away (clears the run); ticking reveals the range to fill in and save. #}
+                <div class="run-range" {% if not game.my_interest.will_run %}hidden{% endif %}>
+                  <div class="row">
+                    <label><span>Min players</span><input name="run_min" type="number" min="1" max="99" inputmode="numeric"
+                           value="{{ game.my_interest.run_min|default:game.box_min|default:'' }}"></label>
+                    <label><span>Max players</span><input name="run_max" type="number" min="1" max="99" inputmode="numeric"
+                           value="{{ game.my_interest.run_max|default:game.box_max|default:'' }}"></label>
+                  </div>
+                  <button type="submit" class="small">Save</button>
+                </div>
+                {% if game.my_range_outside_box %}
+                  <p class="warn">Your range is outside the box count ({{ game.box_min|default:"?" }}–{{ game.box_max|default:"?" }}). That's fine for variants.</p>
+                {% endif %}
+              </form>
+            {% endif %}
+          {% elif game.my_interest %}
+            <p class="picked-label">✓ You want to play this{% if game.my_interest.will_run %} and can run it ({{ game.my_interest.run_min }}–{{ game.my_interest.run_max }}){% endif %}</p>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ol>
+  </section>
+</div>
